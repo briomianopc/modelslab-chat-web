@@ -30,7 +30,7 @@ MODEL_LIST={"claude-sonnet-4.5": "Claude Sonnet 4.5", "gpt-4o": "GPT-4o", "gemin
 2. 启动服务
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 3. 访问应用
@@ -172,19 +172,19 @@ docker run -d \
 ### 使用 Docker Compose
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 查看日志：
 
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 停止服务：
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ## 开发说明
@@ -220,7 +220,7 @@ MODEL_LIST={"new-model-id": "新模型名称"}
 
 - 检查端口 5000 是否被占用
 - 检查 `.env` 文件是否存在且格式正确
-- 查看容器日志：`docker-compose logs`
+- 查看容器日志：`docker compose logs`
 
 ## 许可证
 
