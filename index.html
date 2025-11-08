@@ -88,10 +88,7 @@ select, input {
   <div class="header">
     <div>
       <select id="modelSelect">
-        <option value="claude-sonnet-4.5">Claude Sonnet 4.5</option>
-        <option value="gemini-pro-1.5">Gemini Pro 1.5</option>
-        <option value="gpt-4o">GPT-4o</option>
-        <option value="mistral-7b">Mistral 7B</option>
+        <option value="">加载中...</option>
       </select>
       <input type="text" id="systemPrompt" placeholder="系统提示词" />
     </div>
@@ -120,6 +117,42 @@ const newChatBtn = document.getElementById('newChat');
 // ---- 数据结构 ----
 let chats = JSON.parse(localStorage.getItem('multiChats') || '{}');
 let currentChatId = null;
+let availableModels = {};
+
+// ---- 加载模型列表 ----
+async function loadModels() {
+  try {
+    const res = await fetch('/api/models');
+    const data = await res.json();
+    if (data.status === 'success' && data.models) {
+      availableModels = data.models;
+      modelSelect.innerHTML = '';
+      Object.entries(availableModels).forEach(([id, name]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = name;
+        modelSelect.appendChild(option);
+      });
+      // 如果有当前会话，恢复其模型选择
+      if (currentChatId && chats[currentChatId]) {
+        const chatModel = chats[currentChatId].model_id;
+        if (availableModels[chatModel]) {
+          modelSelect.value = chatModel;
+        } else {
+          // 如果当前模型不在列表中，使用第一个可用模型
+          modelSelect.value = Object.keys(availableModels)[0] || '';
+          chats[currentChatId].model_id = modelSelect.value;
+        }
+      } else {
+        // 设置默认模型
+        modelSelect.value = Object.keys(availableModels)[0] || '';
+      }
+    }
+  } catch (error) {
+    console.error('加载模型列表失败:', error);
+    modelSelect.innerHTML = '<option value="">加载失败</option>';
+  }
+}
 
 // ---- 渲染函数 ----
 function renderChatList() {
@@ -156,9 +189,10 @@ function addMessage(content, role) {
 // ---- 会话控制 ----
 function newChat() {
   const id = 'chat-' + Date.now();
+  const defaultModel = Object.keys(availableModels)[0] || '';
   chats[id] = {
     title: '新会话 ' + new Date().toLocaleTimeString(),
-    model_id: 'claude-sonnet-4.5',
+    model_id: defaultModel,
     system_prompt: '',
     history: []
   };
@@ -201,15 +235,25 @@ async function sendMessage() {
     system_prompt: chat.system_prompt,
     history: chat.history
   };
-  const res = await fetch('/api/chat', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  const reply = data.message || '（无响应）';
-  addMessage(reply, 'assistant');
-  chat.history.push({role:'assistant', content:reply});
-  saveChats();
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.status === 'success') {
+      const reply = data.message || '（无响应）';
+      addMessage(reply, 'assistant');
+      chat.history.push({role:'assistant', content:reply});
+      saveChats();
+    } else {
+      const errorMsg = data.message || '请求失败';
+      addMessage(`错误: ${errorMsg}`, 'assistant');
+    }
+  } catch (error) {
+    console.error('发送消息失败:', error);
+    addMessage(`网络错误: ${error.message}`, 'assistant');
+  }
 }
 
 // ---- 初始化 ----
@@ -218,8 +262,11 @@ deleteChatBtn.onclick = deleteChat;
 sendButton.onclick = sendMessage;
 messageInput.onkeypress = e => { if (e.key==='Enter') sendMessage(); };
 
-if (Object.keys(chats).length === 0) newChat();
-else { currentChatId = Object.keys(chats)[0]; renderChatList(); renderMessages(); }
+// 先加载模型列表，然后初始化会话
+loadModels().then(() => {
+  if (Object.keys(chats).length === 0) newChat();
+  else { currentChatId = Object.keys(chats)[0]; renderChatList(); renderMessages(); }
+});
 </script>
 </body>
 </html>
