@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY app.py .
 
-COPY --from=frontend-builder /frontend/dist ./dist
+COPY --from=frontend-builder /dist ./dist
 
 EXPOSE 5000
 
