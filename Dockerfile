@@ -1,24 +1,28 @@
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm ci
+
+COPY frontend/ .
+RUN npm run build
+
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# 复制依赖文件
 COPY requirements.txt .
-
-# 安装依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制应用代码
 COPY app/ ./app/
 COPY app.py .
-COPY index.html .
 
-# 暴露端口
+COPY --from=frontend-builder /frontend/dist ./dist
+
 EXPOSE 5000
 
-# 设置环境变量
 ENV FLASK_APP=app.py
 ENV PYTHONUNBUFFERED=1
 
-# 运行应用
 CMD ["python", "app.py"]
